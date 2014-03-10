@@ -102,6 +102,7 @@ class PHPPowerPoint_Writer_PowerPoint2007 implements PHPPowerPoint_Writer_IWrite
 
     	// Initialise writer parts
 		$this->_writerParts['contenttypes'] 	= new PHPPowerPoint_Writer_PowerPoint2007_ContentTypes();
+		$this->_writerParts['pptprops'] 		= new PHPPowerPoint_Writer_PowerPoint2007_PptProps();
 		$this->_writerParts['docprops'] 		= new PHPPowerPoint_Writer_PowerPoint2007_DocProps();
 		$this->_writerParts['rels'] 			= new PHPPowerPoint_Writer_PowerPoint2007_Rels();
 		$this->_writerParts['theme'] 			= new PHPPowerPoint_Writer_PowerPoint2007_Theme();
@@ -167,6 +168,10 @@ class PHPPowerPoint_Writer_PowerPoint2007 implements PHPPowerPoint_Writer_IWrite
 			// Add [Content_Types].xml to ZIP file
 			$objZip->addFromString('[Content_Types].xml', 			$this->getWriterPart('ContentTypes')->writeContentTypes($this->_presentation));
 
+			// Add PPT properties and styles to ZIP file - Required for Apple Keynote compatibility.
+			$objZip->addFromString('ppt/presProps.xml',   $this->getWriterPart('PptProps')->writePresProps($this->_presentation));
+			$objZip->addFromString('ppt/tableStyles.xml', $this->getWriterPart('PptProps')->writeTableStyles($this->_presentation));
+
 			// Add relationships to ZIP file
 			$objZip->addFromString('_rels/.rels', 						$this->getWriterPart('Rels')->writeRelationships($this->_presentation));
 			$objZip->addFromString('ppt/_rels/presentation.xml.rels', 	$this->getWriterPart('Rels')->writePresentationRelationships($this->_presentation));
@@ -181,21 +186,21 @@ class PHPPowerPoint_Writer_PowerPoint2007 implements PHPPowerPoint_Writer_IWrite
 				$objZip->addFromString('ppt/theme/_rels/theme' . $masterSlide['masterid'] . '.xml.rels', 	$this->getWriterPart('Rels')->writeThemeRelationships( $masterSlide['masterid'] ));
 				$objZip->addFromString('ppt/theme/theme' . $masterSlide['masterid'] . '.xml', 				utf8_encode($this->getWriterPart('Theme')->writeTheme($this->_presentation, $masterSlide['masterid'])));
 			}
-			
+
 			// Add slide masters to ZIP file
 			$masterSlides = $this->getLayoutPack()->getMasterSlides();
 			foreach ($masterSlides as $masterSlide) {
 				$objZip->addFromString('ppt/slideMasters/_rels/slideMaster' . $masterSlide['masterid'] . '.xml.rels', 	$this->getWriterPart('Rels')->writeSlideMasterRelationships( $masterSlide['masterid'] ));
 				$objZip->addFromString('ppt/slideMasters/slideMaster' . $masterSlide['masterid'] . '.xml', 				$masterSlide['body']);
 			}
-			
+
 			// Add slide layouts to ZIP file
 			$slideLayouts = $this->getLayoutPack()->getLayouts();
 			foreach ($slideLayouts as $key => $layout) {
 				$objZip->addFromString('ppt/slideLayouts/_rels/slideLayout' . $key . '.xml.rels', 	$this->getWriterPart('Rels')->writeSlideLayoutRelationships($key, $layout['masterid']));
 				$objZip->addFromString('ppt/slideLayouts/slideLayout' . $key . '.xml', 				utf8_encode($layout['body']));
 			}
-			
+
 			// Add layoutpack relations
 			$otherRelations = null;
 			$otherRelations = $this->getLayoutPack()->getMasterSlideRelations();
@@ -228,8 +233,8 @@ class PHPPowerPoint_Writer_PowerPoint2007 implements PHPPowerPoint_Writer_IWrite
 				// Add slide
 				$objZip->addFromString('ppt/slides/_rels/slide' . ($i + 1) . '.xml.rels', 	$this->getWriterPart('Rels')->writeSlideRelationships($this->_presentation->getSlide($i), ($i + 1)));
 				$objZip->addFromString('ppt/slides/slide' . ($i + 1) . '.xml', 	$this->getWriterPart('Slide')->writeSlide($this->_presentation->getSlide($i)));
-			}					
-					
+			}
+
 			// Add media
 			for ($i = 0; $i < $this->getDrawingHashTable()->count(); ++$i) {
 				if ($this->getDrawingHashTable()->getByIndex($i) instanceof PHPPowerPoint_Shape_Drawing) {
@@ -262,7 +267,7 @@ class PHPPowerPoint_Writer_PowerPoint2007 implements PHPPowerPoint_Writer_IWrite
 					$objZip->addFromString('ppt/media/' . str_replace(' ', '_', $this->getDrawingHashTable()->getByIndex($i)->getIndexedFilename()), $imageContents);
 				} else if ($this->getDrawingHashTable()->getByIndex($i) instanceof PHPPowerPoint_Shape_Chart) {
 					$objZip->addFromString('ppt/charts/' . $this->getDrawingHashTable()->getByIndex($i)->getIndexedFilename(), $this->getWriterPart('Chart')->writeChart($this->getDrawingHashTable()->getByIndex($i)));
-					
+
 					// Chart relations?
 					if ($this->getDrawingHashTable()->getByIndex($i)->getIncludeSpreadsheet()) {
 						$objZip->addFromString('ppt/charts/_rels/' . $this->getDrawingHashTable()->getByIndex($i)->getIndexedFilename() . '.rels', $this->getWriterPart('Rels')->writeChartRelationships($this->getDrawingHashTable()->getByIndex($i)));
